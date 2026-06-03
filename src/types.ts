@@ -1,5 +1,6 @@
 export interface TriggerPoint {
   triggerName: string;
+  triggerType: "absent" | "weak" | "misapplied" | "overused";
   originalQuote: string;
   critique: string;
   solution: string;
@@ -8,6 +9,8 @@ export interface TriggerPoint {
 export interface TriggersCritique {
   title: string;
   score: number; // 0 - 100
+  triggerDensityScore: number; // 0 - 100 scale measuring trigger saturation/overload vs dry
+  triggerDensityExplanation: string; // analysis of trigger density and cognitive overload
   points: TriggerPoint[];
 }
 
@@ -17,6 +20,13 @@ export interface CtaCritique {
   originalQuote: string;
   critique: string;
   solution: string;
+}
+
+export interface CtaContextAnalysis {
+  isPremature: boolean;
+  desireBuiltBeforeCTA: number; // 0-100
+  objectionHandlingBeforeCTA: number; // 0-100;
+  contextualCoherence: string;
 }
 
 export interface HeadspaceBreakPoint {
@@ -47,6 +57,37 @@ export interface VoiceAnalysis {
   generalScore: number;
 }
 
+export interface NarrativeMeasure {
+  score: number;
+  critique: string;
+}
+
+export interface NarrativeStructure {
+  hookEffectiveness: NarrativeMeasure;
+  tensionBuilding: NarrativeMeasure;
+  logicalFlow: NarrativeMeasure;
+  pacingIssues: string[];
+}
+
+export interface EmotionalJourneyMap {
+  intendedEmotions: string[];
+  actualEmotions: string[];
+  emotionalGaps: string[];
+}
+
+export interface ObjectionHandling {
+  anticipatedObjections: string[];
+  addressedObjections: string[];
+  missingObjections: string[];
+  objectionHandlingScore: number;
+}
+
+export interface MakeoverStrategy {
+  coreStrategicChanges: string[];
+  optionalImprovements: string[];
+  priorityRanking: string[];
+}
+
 export interface CritiqueReport {
   overallScore: number; // 0 - 100 (harsh grading)
   overallVerdict: string; // e.g., "CATASTRÓFICO", "VENDEDOR CHATO", "AMADOR", "SULTÃO DO GOLPE", etc.
@@ -56,6 +97,11 @@ export interface CritiqueReport {
   headspaceBreaks: HeadspaceBreakPoint[];
   makeover: CopyMakeover;
   voiceAnalysis: VoiceAnalysis;
+  narrativeStructure: NarrativeStructure;
+  ctaContextAnalysis: CtaContextAnalysis;
+  emotionalJourneyMap: EmotionalJourneyMap;
+  objectionHandling: ObjectionHandling;
+  makeoverStrategy: MakeoverStrategy;
   transcription?: string; // Full transcript generated if audio was processed
 }
 

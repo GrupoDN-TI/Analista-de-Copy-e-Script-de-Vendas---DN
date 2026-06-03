@@ -19,8 +19,13 @@ import {
   FileText,
   Info,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  ShieldCheck,
+  HelpCircle,
+  HeartHandshake,
+  Download
 } from "lucide-react";
+import { jsPDF } from "jspdf";
 import { CritiqueReport } from "./types";
 
 // Suggested preset templates for immediate demo analysis to keep it friction-free!
@@ -111,6 +116,237 @@ export default function App() {
       if (durationTimerRef.current) clearInterval(durationTimerRef.current);
     };
   }, [isRecording]);
+
+  // Generate beautiful, pagination-aware A4 PDF report with jsPDF
+  const generatePDFReport = () => {
+    if (!critiqueResult) return;
+
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4"
+    });
+
+    const pageHeight = 297;
+    const pageWidth = 210;
+    const margin = 20;
+    let y = 25;
+
+    const checkPageBreak = (neededHeight: number) => {
+      if (y + neededHeight > pageHeight - margin) {
+        doc.addPage();
+        y = 25;
+        // Elegant header line on subsequent pages
+        doc.setFont("Helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184); // slate-400
+        doc.text("FRITADEIRA DE COPIES DO INSS — RELATÓRIO DE AUDITORIA", margin, 12);
+        doc.setDrawColor(226, 232, 240); // slate-200
+        doc.line(margin, 14, pageWidth - margin, 14);
+        doc.setFont("Helvetica", "normal");
+      }
+    };
+
+    const printParagraph = (text: string, fontSize = 9.5, style = "normal", color = [51, 65, 85]) => {
+      doc.setFont("Helvetica", style);
+      doc.setFontSize(fontSize);
+      doc.setTextColor(color[0], color[1], color[2]);
+      const lines: string[] = doc.splitTextToSize(text, pageWidth - 2 * margin);
+      for (const line of lines) {
+        checkPageBreak(5);
+        doc.text(line, margin, y);
+        y += 5;
+      }
+      y += 1.5; // space after paragraph
+    };
+
+    const printBullet = (label: string, text: string, listColor = [15, 23, 42]) => {
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(listColor[0], listColor[1], listColor[2]);
+      checkPageBreak(5);
+      doc.text("• " + label + ":", margin, y);
+      
+      const labelWidth = doc.getTextWidth("• " + label + ": ") + 1;
+      const textWidthLimit = pageWidth - 2 * margin - labelWidth;
+      
+      doc.setFont("Helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(71, 85, 105); // slate-600
+
+      const textLines: string[] = doc.splitTextToSize(text, textWidthLimit);
+      if (textLines.length > 0) {
+        // print first line right next to label
+        doc.text(textLines[0], margin + labelWidth, y);
+        y += 5;
+        
+        // print secondary lines indented for optimal layout alignment
+        for (let i = 1; i < textLines.length; i++) {
+          checkPageBreak(5);
+          doc.text(textLines[i], margin + 6, y);
+          y += 5;
+        }
+      } else {
+        y += 5;
+      }
+      y += 1;
+    };
+
+    const printSectionHeader = (title: string, color = [30, 41, 59]) => {
+      checkPageBreak(15);
+      y += 4;
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(color[0], color[1], color[2]);
+      doc.text(title.toUpperCase(), margin, y);
+      y += 2;
+      doc.setDrawColor(203, 213, 225); // slate-300
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 5.5;
+    };
+
+    // Draw main HEADER BANNER (Slate UI Dark Concept)
+    doc.setFillColor(15, 23, 42); // slate-900
+    doc.rect(margin, y, pageWidth - 2 * margin, 26, "F");
+
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255);
+    doc.text("FRITADEIRA DE COPIES DO INSS", margin + 6, y + 10);
+    
+    doc.setFont("Helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(244, 63, 94); // rose-500
+    doc.text("AUDITORIA SUPER ESCRUPULOSA DO CRIVO DA VERDADE", margin + 6, y + 15);
+
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184); // slate-400
+    doc.text(`Data do Relatório: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}`, pageWidth - margin - 6, y + 15, { align: "right" });
+
+    y += 33;
+
+    // Row containing Overall Score & Verdict
+    checkPageBreak(25);
+    doc.setFillColor(248, 250, 252); // slate-50
+    doc.setDrawColor(226, 232, 240); // slate-200
+    doc.rect(margin, y, pageWidth - 2 * margin, 20, "FD");
+
+    // Add Overall Score text
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(71, 85, 105);
+    doc.text("SCORE GERAL DA COPY:", margin + 5, y + 7);
+    
+    doc.setFontSize(18);
+    const scoreVal = critiqueResult.overallScore;
+    if (scoreVal < 45) {
+      doc.setTextColor(190, 24, 74); // rose-700
+    } else if (scoreVal < 70) {
+      doc.setTextColor(180, 83, 9); // amber-700
+    } else {
+      doc.setTextColor(4, 120, 87); // emerald-700
+    }
+    doc.text(`${scoreVal} / 100`, margin + 5, y + 15);
+
+    // Add Verdict text
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(71, 85, 105);
+    doc.text("VERDITO CRÍTICO:", margin + 70, y + 7);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(15, 23, 42); // slate-900
+    doc.text(critiqueResult.overallVerdict, margin + 70, y + 14);
+
+    y += 26;
+
+    // Verdict explanation paragraph
+    printParagraph(`"${critiqueResult.overallExplanation}"`, 9.5, "oblique", [71, 85, 105]);
+    y += 3;
+
+    // Voice analysis
+    printSectionHeader("Análise de Performance Vocal & Acústica");
+    printBullet("Pontuação de Comunicação Vocal", `${critiqueResult.voiceAnalysis.generalScore}/100`);
+    printBullet("Feedback de Tom & Atitude", critiqueResult.voiceAnalysis.toneFeedback);
+    printBullet("Feedback de Ritmo (Velocidade)", critiqueResult.voiceAnalysis.paceFeedback);
+
+    // Narrative structure
+    printSectionHeader("Estrutura Narrativa & Persuasiva");
+    printBullet("Impacto do Gancho de Entrada", `${critiqueResult.narrativeStructure.hookEffectiveness.score}/100 — ${critiqueResult.narrativeStructure.hookEffectiveness.critique}`);
+    printBullet("Construção de Tensão (Desejo)", `${critiqueResult.narrativeStructure.tensionBuilding.score}/100 — ${critiqueResult.narrativeStructure.tensionBuilding.critique}`);
+    printBullet("Fluxo Lógico & Encadeamento", `${critiqueResult.narrativeStructure.logicalFlow.score}/100 — ${critiqueResult.narrativeStructure.logicalFlow.critique}`);
+    if (critiqueResult.narrativeStructure.pacingIssues && critiqueResult.narrativeStructure.pacingIssues.length > 0) {
+      printBullet("Alertas de Ritmo (Pacing)", critiqueResult.narrativeStructure.pacingIssues.join(", "));
+    }
+
+    // Objection Handling Section
+    printSectionHeader("Análise Preditiva de Objeções (Segurança)");
+    printBullet("Índice de Blindagem Psicológica", `${critiqueResult.objectionHandling?.objectionHandlingScore || 0}/100`);
+    if (critiqueResult.objectionHandling?.anticipatedObjections && critiqueResult.objectionHandling.anticipatedObjections.length > 0) {
+      printBullet("Objeções Esperadas do Aposentado", critiqueResult.objectionHandling.anticipatedObjections.join("; "));
+    }
+    if (critiqueResult.objectionHandling?.addressedObjections && critiqueResult.objectionHandling.addressedObjections.length > 0) {
+      printBullet("Objeções Resolvidas na Copy", critiqueResult.objectionHandling.addressedObjections.join("; "));
+    }
+    if (critiqueResult.objectionHandling?.missingObjections && critiqueResult.objectionHandling.missingObjections.length > 0) {
+      printBullet("Furos Críticos de Segurança", critiqueResult.objectionHandling.missingObjections.join("; "));
+    }
+
+    // Emotional Journey Map
+    printSectionHeader("Mapeamento Emotional & Empatia");
+    if (critiqueResult.emotionalJourneyMap?.intendedEmotions && critiqueResult.emotionalJourneyMap.intendedEmotions.length > 0) {
+      printBullet("Sentimento Projetado pelo Vendedor", critiqueResult.emotionalJourneyMap.intendedEmotions.join(", "));
+    }
+    if (critiqueResult.emotionalJourneyMap?.actualEmotions && critiqueResult.emotionalJourneyMap.actualEmotions.length > 0) {
+      printBullet("Reação Emocional Real do Idoso", critiqueResult.emotionalJourneyMap.actualEmotions.join(", "));
+    }
+    if (critiqueResult.emotionalJourneyMap?.emotionalGaps && critiqueResult.emotionalJourneyMap.emotionalGaps.length > 0) {
+      printBullet("Gargalos & Desconexões", critiqueResult.emotionalJourneyMap.emotionalGaps.join("; "));
+    }
+
+    // Makeover Strategy
+    printSectionHeader("Decisões Estratégicas do Makeover");
+    if (critiqueResult.makeoverStrategy?.coreStrategicChanges && critiqueResult.makeoverStrategy.coreStrategicChanges.length > 0) {
+      printBullet("Mudanças Estruturais Efetuadas", critiqueResult.makeoverStrategy.coreStrategicChanges.join(" / "));
+    }
+    if (critiqueResult.makeoverStrategy?.priorityRanking && critiqueResult.makeoverStrategy.priorityRanking.length > 0) {
+      printBullet("Ordem Crítica de Correção", critiqueResult.makeoverStrategy.priorityRanking.join(" -> "));
+    }
+
+    // ROTEIRO RECOMENDADO SECTION (MAKE OVER TRANSFORMATION)
+    printSectionHeader("O Roteiro Recomendado (Versão Integral de Alta Conversão)");
+    
+    checkPageBreak(25);
+    doc.setFillColor(240, 253, 244); // green-50
+    doc.setDrawColor(187, 247, 208); // green-200
+    doc.rect(margin - 2, y, pageWidth - 2 * margin + 4, 10, "F");
+    
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(21, 128, 61); // green-700
+    doc.text("ROTEIRO REESCRITO INTEGRAL PERSUASIVO", margin, y + 6.5);
+    y += 14;
+
+    const fullScript = critiqueResult.makeover.completeNewScript || "";
+    printParagraph(fullScript, 9.5, "normal", [15, 23, 42]);
+
+    // Page numbers footer
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFont("Helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184); // slate-400
+      doc.text(
+        `Página ${i} de ${pageCount}`,
+        pageWidth / 2,
+        pageHeight - 8,
+        { align: "center" }
+      );
+    }
+
+    doc.save(`relatorio-auditoria-script-score-${critiqueResult.overallScore}.pdf`);
+  };
 
   // Handle Preset Script load
   const loadPreset = (preset: typeof SCRIPTS_DEMO[0]) => {
@@ -610,6 +846,24 @@ export default function App() {
             {critiqueResult && !isLoading && (
               <div className="space-y-8" id="critique_report_container">
                 
+                {/* PDF Report Export Bar */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-xl">
+                  <div className="space-y-1">
+                    <span className="text-emerald-400 font-mono text-xs font-black tracking-widest block uppercase">⚡ AUDITORIA CONCLUÍDA</span>
+                    <p className="text-xs text-slate-405 leading-relaxed text-slate-400">
+                      Dissecamos o crivo de segurança, as objeções e o ritmo vocal. Baixe o relatório em PDF com o score geral e o roteiro recomendado.
+                    </p>
+                  </div>
+                  <button
+                    onClick={generatePDFReport}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black font-display text-xs uppercase tracking-wider rounded-lg shadow-lg shadow-emerald-950/20 active:translate-y-0.5 transition-all cursor-pointer select-none shrink-0"
+                    id="download_pdf_report_btn"
+                  >
+                    <Download className="w-4 h-4" />
+                    Baixar Relatório PDF
+                  </button>
+                </div>
+                
                 {/* 1. Score & Score Thermometer Banner */}
                 <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl relative">
                   
@@ -735,52 +989,319 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* 1.5. Narrative Structure (Storytelling & Persuasion Sequence) */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BrainCircuit className="w-5 h-5 text-purple-400" />
+                      <h3 className="font-display font-black text-lg text-white">Análise de Estrutura Narrativa & Storytelling</h3>
+                    </div>
+                    <span className="text-xs font-mono px-3 py-1 bg-purple-950/40 border border-purple-900 rounded-full text-purple-400 font-bold">
+                      Fluxo de Atenção e Ordem
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl p-6 space-y-6">
+                    
+                    {/* Intro text explaining the sequential story */}
+                    <div className="text-xs text-slate-400 leading-relaxed border-b border-slate-850 pb-4">
+                      <strong className="text-purple-400">Heurística Narrativa:</strong> Uma abordagem consignada de alta performance necessita respeitar a sequência lógica da mente humana. Se você solicita uma decisão ou joga o preço antes de construir o desejo e acolher o idoso, o script quebra automaticamente por ativar os alarmes anti-golpe.
+                    </div>
+
+                    {/* Three major storytelling stages */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                      
+                      {/* Hook Step */}
+                      <div className="bg-slate-950 rounded-xl p-4 border border-slate-850 space-y-3 hover:border-purple-900/50 transition-all">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[10px] uppercase font-mono text-slate-500 block">Fase 1: Gancho (0s - 7s)</span>
+                            <h4 className="font-display font-extrabold text-xs text-slate-200">Eficácia da Abertura</h4>
+                          </div>
+                          <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
+                            critiqueResult.narrativeStructure.hookEffectiveness.score < 45 ? "bg-red-950/50 text-red-400" : critiqueResult.narrativeStructure.hookEffectiveness.score < 70 ? "bg-amber-950/50 text-amber-400" : "bg-emerald-950/50 text-emerald-400"
+                          }`}>
+                            {critiqueResult.narrativeStructure.hookEffectiveness.score}%
+                          </span>
+                        </div>
+                        
+                        {/* Progress Bar */}
+                        <div className="w-full bg-slate-900 rounded-full h-1 overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full ${
+                              critiqueResult.narrativeStructure.hookEffectiveness.score < 45 ? "bg-red-500" : critiqueResult.narrativeStructure.hookEffectiveness.score < 70 ? "bg-amber-500" : "bg-emerald-500"
+                            }`}
+                            style={{ width: `${critiqueResult.narrativeStructure.hookEffectiveness.score}%` }}
+                          />
+                        </div>
+
+                        <p className="text-xs text-slate-400 leading-relaxed text-justify">
+                          {critiqueResult.narrativeStructure.hookEffectiveness.critique}
+                        </p>
+                      </div>
+
+                      {/* Desire/Tension Step */}
+                      <div className="bg-slate-950 rounded-xl p-4 border border-slate-850 space-y-3 hover:border-purple-900/50 transition-all">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[10px] uppercase font-mono text-slate-500 block">Fase 2: Desenvolvimento</span>
+                            <h4 className="font-display font-extrabold text-xs text-slate-200">Construção de Tensão</h4>
+                          </div>
+                          <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
+                            critiqueResult.narrativeStructure.tensionBuilding.score < 45 ? "bg-red-950/50 text-red-400" : critiqueResult.narrativeStructure.tensionBuilding.score < 70 ? "bg-amber-950/50 text-amber-400" : "bg-emerald-950/50 text-emerald-400"
+                          }`}>
+                            {critiqueResult.narrativeStructure.tensionBuilding.score}%
+                          </span>
+                        </div>
+                        
+                        {/* Progress Bar */}
+                        <div className="w-full bg-slate-900 rounded-full h-1 overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full ${
+                              critiqueResult.narrativeStructure.tensionBuilding.score < 45 ? "bg-red-500" : critiqueResult.narrativeStructure.tensionBuilding.score < 70 ? "bg-amber-500" : "bg-emerald-500"
+                            }`}
+                            style={{ width: `${critiqueResult.narrativeStructure.tensionBuilding.score}%` }}
+                          />
+                        </div>
+
+                        <p className="text-xs text-slate-400 leading-relaxed text-justify">
+                          {critiqueResult.narrativeStructure.tensionBuilding.critique}
+                        </p>
+                      </div>
+
+                      {/* Logical Flow Step */}
+                      <div className="bg-slate-950 rounded-xl p-4 border border-slate-850 space-y-3 hover:border-purple-900/50 transition-all">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[10px] uppercase font-mono text-slate-500 block">Fase 3: Sequência</span>
+                            <h4 className="font-display font-extrabold text-xs text-slate-200">Fluxo Lógico e Ordem</h4>
+                          </div>
+                          <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
+                            critiqueResult.narrativeStructure.logicalFlow.score < 45 ? "bg-red-950/50 text-red-400" : critiqueResult.narrativeStructure.logicalFlow.score < 70 ? "bg-amber-950/50 text-amber-400" : "bg-emerald-950/50 text-emerald-400"
+                          }`}>
+                            {critiqueResult.narrativeStructure.logicalFlow.score}%
+                          </span>
+                        </div>
+                        
+                        {/* Progress Bar */}
+                        <div className="w-full bg-slate-900 rounded-full h-1 overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full ${
+                              critiqueResult.narrativeStructure.logicalFlow.score < 45 ? "bg-red-500" : critiqueResult.narrativeStructure.logicalFlow.score < 70 ? "bg-amber-500" : "bg-emerald-500"
+                            }`}
+                            style={{ width: `${critiqueResult.narrativeStructure.logicalFlow.score}%` }}
+                          />
+                        </div>
+
+                        <p className="text-xs text-slate-400 leading-relaxed text-justify">
+                          {critiqueResult.narrativeStructure.logicalFlow.critique}
+                        </p>
+                      </div>
+
+                    </div>
+
+                    {/* Pacing issues list details */}
+                    {critiqueResult.narrativeStructure.pacingIssues && critiqueResult.narrativeStructure.pacingIssues.length > 0 && (
+                      <div className="pt-4 border-t border-slate-850 space-y-2.5">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-purple-400 font-mono uppercase tracking-wider">
+                          <AlertTriangle className="w-4 h-4 text-purple-400 shrink-0" />
+                          Alertas de Ritmo e Pacing (Quebras de Cadência):
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                          {critiqueResult.narrativeStructure.pacingIssues.map((issue, idx) => (
+                            <div key={idx} className="bg-slate-950 p-3 rounded-lg border border-slate-900 flex items-start gap-2 text-slate-300">
+                              <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0 mt-1.5" />
+                              <span className="leading-relaxed">{issue}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+
+                {/* 1.75. Emotional Journey Map & Predictive Empathetic Gaps */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BrainCircuit className="w-5 h-5 text-pink-400" />
+                      <h3 className="font-display font-black text-lg text-white">Mapa de Jornada Emocional Preditiva</h3>
+                    </div>
+                    <span className="text-xs font-mono px-3 py-1 bg-pink-950/40 border border-pink-900 rounded-full text-pink-400 font-bold">
+                      Design vs. Realidade Psicológica
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl p-6 space-y-6">
+                    {/* Predictive intro explaining why tracking the emotional state matters before the pitch */}
+                    <div className="text-xs text-slate-400 leading-relaxed border-b border-slate-850 pb-4">
+                      <strong className="text-pink-400">Análise Preditiva de Empatia:</strong> Em vez de apenas catalogar erros cometidos (reativo), mapeamos antecipadamente o atrito existencial do idoso. Abaixo, comparamos o espectro de emoções projetado pelo redator com a verdadeira resposta emocional que o script dispara por falhas de sintonia.
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {/* Intended emotions */}
+                      <div className="bg-slate-950 rounded-xl p-4 border border-slate-850 space-y-3 hover:border-emerald-900/50 transition-all">
+                        <div className="flex items-center gap-2">
+                          <span className="p-1.5 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-900 text-[10px] font-mono font-bold">
+                            INTENÇÃO
+                          </span>
+                          <h4 className="font-display font-bold text-xs uppercase tracking-wider text-slate-300">Emoções Pretendidas (Vendedor)</h4>
+                        </div>
+                        <p className="text-[11px] text-slate-500">O que o script planeja ou presume projetar na cabeça do idoso:</p>
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {critiqueResult.emotionalJourneyMap?.intendedEmotions?.map((emo, idx) => (
+                            <span key={idx} className="px-2.5 py-1 bg-emerald-950/40 border border-emerald-900/60 rounded text-slate-300 text-xs font-mono">
+                              ✨ {emo}
+                            </span>
+                          )) || <span className="text-xs text-slate-500 font-mono">Nenhuma listada</span>}
+                        </div>
+                      </div>
+
+                      {/* Actual emotions */}
+                      <div className="bg-slate-950 rounded-xl p-4 border border-slate-850 space-y-3 hover:border-red-900/50 transition-all">
+                        <div className="flex items-center gap-2">
+                          <span className="p-1.5 rounded-lg bg-red-950 text-red-400 border border-red-900 text-[10px] font-mono font-bold">
+                            REALIDADE
+                          </span>
+                          <h4 className="font-display font-bold text-xs uppercase tracking-wider text-slate-300">Emoções Reais (Aposentado)</h4>
+                        </div>
+                        <p className="text-[11px] text-slate-500">A verdadeira reação defensiva e biológica de quem teme fraudes:</p>
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {critiqueResult.emotionalJourneyMap?.actualEmotions?.map((emo, idx) => (
+                            <span key={idx} className="px-2.5 py-1 bg-red-950/40 border border-red-900/60 rounded text-slate-300 text-xs font-mono">
+                              ⚠️ {emo}
+                            </span>
+                          )) || <span className="text-xs text-slate-500 font-mono">Nenhuma listada</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Emotional gaps analytical details */}
+                    {critiqueResult.emotionalJourneyMap?.emotionalGaps && critiqueResult.emotionalJourneyMap.emotionalGaps.length > 0 && (
+                      <div className="pt-4 border-t border-slate-850 space-y-2.5">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-pink-400 font-mono uppercase tracking-wider">
+                          <ShieldAlert className="w-4 h-4 text-pink-400 shrink-0" />
+                          Lacunas de Empatia & Atritos Existenciais Detectados:
+                        </div>
+                        <div className="space-y-2 text-xs">
+                          {critiqueResult.emotionalJourneyMap.emotionalGaps.map((gap, idx) => (
+                            <div key={idx} className="bg-slate-950 p-3 rounded-lg border border-slate-900 flex items-start gap-3 text-slate-300">
+                              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-pink-950/80 border border-pink-900 text-[10px] text-pink-400 font-bold shrink-0 mt-0.5">
+                                {idx + 1}
+                              </span>
+                              <span className="leading-relaxed text-justify">{gap}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+
                 {/* 2. Critical Block 1: Fragile Triggers */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="w-5 h-5 text-red-500" />
-                      <h3 className="font-display font-black text-lg text-white">1. Fragilidades de Gatilho Detectadas</h3>
+                      <h3 className="font-display font-black text-lg text-white">1. Análise de Gatilhos & Densidade Persuasiva</h3>
                     </div>
                     <span className="text-xs font-mono px-2 py-0.5 bg-slate-900 border border-slate-800 rounded text-slate-400">
                       Poder de Persuasão: {critiqueResult.triggersCritique.score}/100
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4" id="triggers_critique_list">
-                    {critiqueResult.triggersCritique.points.map((pt, i) => (
-                      <div key={i} className="bg-slate-900 border border-slate-850 hover:border-slate-800 rounded-xl p-5 transition-all space-y-4 shadow-md">
-                        
-                        {/* Header line for point */}
-                        <div className="flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
-                          <span className="text-xs font-mono text-slate-400">Uso frágil do gatilho de:</span>
-                          <span className="px-2 py-0.5 rounded bg-red-950 text-red-400 font-mono text-[10px] font-bold uppercase tracking-wider border border-red-900">
-                            {pt.triggerName}
-                          </span>
-                        </div>
-
-                        {/* Speech excerpt quotation */}
-                        <div className="bg-slate-950 border border-slate-900 pl-3.5 py-2.5 pr-2 rounded-r-lg border-l-2 border-red-500 italic text-xs font-mono text-slate-300 leading-relaxed">
-                          &ldquo;{pt.originalQuote}&rdquo;
-                        </div>
-
-                        {/* Critical analysis panel & solution layout */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1 text-xs">
-                          {/* Critique detail */}
-                          <div className="bg-slate-950/40 border border-slate-900 rounded p-3 space-y-1.5">
-                            <span className="font-bold text-red-500 uppercase font-mono block text-[10px] tracking-wider">Por que falha na mente do Idoso?</span>
-                            <p className="text-slate-400 leading-relaxed">{pt.critique}</p>
-                          </div>
-                          {/* Re-design solution detail */}
-                          <div className="bg-slate-950/40 border border-slate-900 rounded p-3 space-y-1.5">
-                            <span className="font-bold text-emerald-500 uppercase font-mono block text-[10px] tracking-wider">Como reformular com integridade?</span>
-                            <p className="text-slate-400 leading-relaxed">{pt.solution}</p>
-                          </div>
-                        </div>
-
+                  {/* Trigger Density Card */}
+                  <div className="bg-slate-900 border border-slate-850 rounded-xl p-5 space-y-4 shadow-md">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Flame className="w-4 h-4 text-orange-500 animate-pulse" />
+                        <h4 className="font-display font-bold text-xs uppercase tracking-wider text-slate-300">Saturação & Densidade de Gatilhos</h4>
                       </div>
-                    ))}
+                      <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
+                        critiqueResult.triggersCritique.triggerDensityScore > 80 ? "bg-red-950/50 text-red-400" : critiqueResult.triggersCritique.triggerDensityScore < 40 ? "bg-slate-800 text-slate-400" : "bg-emerald-950/50 text-emerald-400"
+                      }`}>
+                        Densidade: {critiqueResult.triggersCritique.triggerDensityScore}/100
+                      </span>
+                    </div>
+                    
+                    {/* Meter bar */}
+                    <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full ${
+                          critiqueResult.triggersCritique.triggerDensityScore > 80 ? "bg-red-500" : critiqueResult.triggersCritique.triggerDensityScore < 40 ? "bg-amber-500" : "bg-emerald-500"
+                        }`}
+                        style={{ width: `${critiqueResult.triggersCritique.triggerDensityScore}%` }}
+                      />
+                    </div>
+
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      {critiqueResult.triggersCritique.triggerDensityExplanation}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4" id="triggers_critique_list">
+                    {critiqueResult.triggersCritique.points.map((pt, i) => {
+                      // Map trigger types to styling and icon strings
+                      let typeLabel = "Ausente / Recomendado";
+                      let typeColor = "bg-purple-950 text-purple-400 border-purple-900";
+                      
+                      if (pt.triggerType === "weak") {
+                        typeLabel = "Frágil / Superficial";
+                        typeColor = "bg-amber-950 text-amber-400 border-amber-900";
+                      } else if (pt.triggerType === "misapplied") {
+                        typeLabel = "Mal Aplicado / Agressivo";
+                        typeColor = "bg-red-950 text-red-400 border-red-900";
+                      } else if (pt.triggerType === "overused") {
+                        typeLabel = "Saturado / Excesso";
+                        typeColor = "bg-orange-950 text-orange-400 border-orange-900";
+                      } else if (pt.triggerType === "absent") {
+                        typeLabel = "Ausente / Recomendado";
+                        typeColor = "bg-slate-950 text-slate-400 border-slate-800";
+                      }
+
+                      return (
+                        <div key={i} className="bg-slate-900 border border-slate-850 hover:border-slate-800 rounded-xl p-5 transition-all space-y-4 shadow-md">
+                          
+                          {/* Header line for point */}
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
+                              <span className="text-xs font-mono text-slate-400">Gatilho analisado:</span>
+                              <span className="px-2 py-0.5 rounded bg-slate-950 text-slate-200 font-mono text-[10px] font-bold uppercase tracking-wider border border-slate-800">
+                                {pt.triggerName}
+                              </span>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded font-mono text-[9px] font-bold uppercase tracking-wider border ${typeColor}`}>
+                              {typeLabel}
+                            </span>
+                          </div>
+
+                          {/* Speech excerpt quotation */}
+                          {pt.originalQuote && pt.originalQuote !== "N/A" && pt.originalQuote !== "" && (
+                            <div className="bg-slate-950 border border-slate-900 pl-3.5 py-2.5 pr-2 rounded-r-lg border-l-2 border-red-500 italic text-xs font-mono text-slate-300 leading-relaxed">
+                              &ldquo;{pt.originalQuote}&rdquo;
+                            </div>
+                          )}
+
+                          {/* Critical analysis panel & solution layout */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1 text-xs">
+                            {/* Critique detail */}
+                            <div className="bg-slate-950/40 border border-slate-900 rounded p-3 space-y-1.5">
+                              <span className="font-bold text-red-500 uppercase font-mono block text-[10px] tracking-wider">Por que falha na mente do Idoso?</span>
+                              <p className="text-slate-400 leading-relaxed">{pt.critique}</p>
+                            </div>
+                            {/* Re-design solution detail */}
+                            <div className="bg-slate-950/40 border border-slate-900 rounded p-3 space-y-1.5">
+                              <span className="font-bold text-emerald-500 uppercase font-mono block text-[10px] tracking-wider font-bold">Como reformular com integridade?</span>
+                              <p className="text-slate-400 leading-relaxed">{pt.solution}</p>
+                            </div>
+                          </div>
+
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -803,7 +1324,7 @@ export default function App() {
                       &ldquo;{critiqueResult.ctaCritique.originalQuote}&rdquo;
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs pb-4 border-b border-slate-850">
                       {/* Critique detail */}
                       <div className="space-y-1.5">
                         <span className="font-bold text-red-400 uppercase font-mono block text-[10px] tracking-wider">O Ponto Cego Psicológico:</span>
@@ -811,8 +1332,65 @@ export default function App() {
                       </div>
                       {/* Re-design solution detail */}
                       <div className="space-y-1.5 ">
-                        <span className="font-bold text-emerald-400 uppercase font-mono block text-[10px] tracking-wider">A Solução Consertada:</span>
+                        <span className="font-bold text-emerald-400 uppercase font-mono block text-[10px] tracking-wider font-bold">A Solução Consertada:</span>
                         <p className="text-slate-400 leading-relaxed text-justify">{critiqueResult.ctaCritique.solution}</p>
+                      </div>
+                    </div>
+
+                    {/* Dynamic CTA Context Analysis panel */}
+                    <div className="space-y-4 pt-2" id="cta_context_analysis">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase tracking-wider font-mono">
+                          <Info className="w-4 h-4 text-amber-500 shrink-0" />
+                          Saúde do Contexto & Maturidade da Abordagem
+                        </div>
+                        {critiqueResult.ctaContextAnalysis.isPremature ? (
+                          <span className="text-[10px] uppercase font-mono px-2.5 py-0.5 bg-red-950/80 text-red-400 border border-red-900 rounded-full font-bold animate-pulse">
+                            ⚠️ Chamada Prematura / Precoce
+                          </span>
+                        ) : (
+                          <span className="text-[10px] uppercase font-mono px-2.5 py-0.5 bg-emerald-950/80 text-emerald-400 border border-emerald-900 rounded-full font-bold">
+                            ✅ Timing Perfeito / Maduro
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        {/* Desire Bar */}
+                        <div className="bg-slate-950 rounded-lg p-3 border border-slate-900 space-y-2">
+                          <div className="flex justify-between items-center text-[10px] font-mono text-slate-400">
+                            <span>Valor & Desejo Construídos Antes do CTA:</span>
+                            <span className="font-bold text-emerald-400">{critiqueResult.ctaContextAnalysis.desireBuiltBeforeCTA}/100</span>
+                          </div>
+                          <div className="w-full bg-slate-900 rounded-full h-1 overflow-hidden">
+                            <div 
+                              className="h-full rounded-full bg-emerald-500 transition-all duration-500" 
+                              style={{ width: `${critiqueResult.ctaContextAnalysis.desireBuiltBeforeCTA}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Objections Bar */}
+                        <div className="bg-slate-950 rounded-lg p-3 border border-slate-900 space-y-2">
+                          <div className="flex justify-between items-center text-[10px] font-mono text-slate-400">
+                            <span>Tratamento Prévio de Objeções complexas:</span>
+                            <span className="font-bold text-amber-400">{critiqueResult.ctaContextAnalysis.objectionHandlingBeforeCTA}/100</span>
+                          </div>
+                          <div className="w-full bg-slate-900 rounded-full h-1 overflow-hidden">
+                            <div 
+                              className="h-full rounded-full bg-amber-500 transition-all duration-500" 
+                              style={{ width: `${critiqueResult.ctaContextAnalysis.objectionHandlingBeforeCTA}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Discursive coherence analysis text */}
+                      <div className="bg-slate-950 rounded-lg p-3.5 border border-slate-900 text-xs">
+                        <span className="text-[10px] uppercase font-mono text-slate-400 block mb-1">Coerência do Pitch de Encerramento:</span>
+                        <p className="text-slate-400 leading-relaxed text-justify">
+                          {critiqueResult.ctaContextAnalysis.contextualCoherence}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -862,6 +1440,135 @@ export default function App() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+
+                {/* 4. Objection Handling & Psychological Safety */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                      <h3 className="font-display font-black text-lg text-white">4. Gestão Preditiva de Objeções</h3>
+                    </div>
+                    <span className="text-xs font-mono px-2 py-0.5 bg-slate-900 border border-slate-800 rounded text-slate-400">
+                      Blindagem de Objeções: {critiqueResult.objectionHandling?.objectionHandlingScore || 0}/100
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl p-6 space-y-6">
+                    {/* Intro text explaining Objection Handling role */}
+                    <div className="text-xs text-slate-400 leading-relaxed border-b border-slate-850 pb-4">
+                      <strong className="text-emerald-400">Prevenção Psicológica de Defesas:</strong> Aposentados e pensionistas do INSS carregam resistências naturais decorrentes de traumas financeiros anteriores e medos biológicos de golpes eletrônicos. Avaliar como o texto desativa preventivamente essas barreiras de segurança é o limiar entre o fechamento e o telefone desligado na cara.
+                    </div>
+
+                    {/* Score Bar with custom message */}
+                    <div className="bg-slate-950 rounded-xl p-5 border border-slate-850 space-y-3 shadow-md">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <HeartHandshake className="w-4 h-4 text-emerald-500" />
+                          <h4 className="font-display font-bold text-xs uppercase tracking-wider text-slate-300 font-mono">Índice Geral de Segurança da Abordagem</h4>
+                        </div>
+                        <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
+                          (critiqueResult.objectionHandling?.objectionHandlingScore || 0) > 75 ? "bg-emerald-950/50 text-emerald-400" : (critiqueResult.objectionHandling?.objectionHandlingScore || 0) < 40 ? "bg-red-950/50 text-red-400" : "bg-amber-950/50 text-amber-400"
+                        }`}>
+                          Score: {critiqueResult.objectionHandling?.objectionHandlingScore || 0}/100
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            (critiqueResult.objectionHandling?.objectionHandlingScore || 0) > 75 ? "bg-emerald-500" : (critiqueResult.objectionHandling?.objectionHandlingScore || 0) < 40 ? "bg-red-500" : "bg-amber-500"
+                          }`}
+                          style={{ width: `${critiqueResult.objectionHandling?.objectionHandlingScore || 0}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Objection lists GRID */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                      
+                      {/* Anticipated Objections */}
+                      <div className="bg-slate-950 rounded-xl p-4 border border-slate-850 flex flex-col justify-between space-y-3 min-h-[180px] hover:border-slate-800 transition-all">
+                        <div className="space-y-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="p-1 px-1.5 rounded bg-slate-900 text-slate-400 border border-slate-800 text-[9px] font-mono font-bold tracking-wider uppercase">
+                              PREDICTIVE
+                            </span>
+                            <h4 className="font-display font-bold text-xs uppercase tracking-wider text-slate-200">Objeções Inevitáveis</h4>
+                          </div>
+                          <p className="text-[11px] text-slate-500 leading-relaxed">
+                            Medos biológicos e dúvidas lógicas que a oferta desperta naturalmente na cabeça do idoso:
+                          </p>
+                          <ul className="space-y-2 pt-1 text-xs">
+                            {critiqueResult.objectionHandling?.anticipatedObjections?.map((obj, idx) => (
+                              <li key={idx} className="flex gap-2 text-slate-300">
+                                <span className="text-slate-500 shrink-0 select-none">•</span>
+                                <span className="leading-relaxed">{obj}</span>
+                              </li>
+                            )) || <li className="text-slate-500 font-mono text-[11px]">Nenhuma identificada.</li>}
+                          </ul>
+                        </div>
+                      </div>
+
+                      {/* Addressed Objections */}
+                      <div className="bg-slate-950 rounded-xl p-4 border border-slate-850 flex flex-col justify-between space-y-3 min-h-[180px] hover:border-emerald-900/45 transition-all">
+                        <div className="space-y-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="p-1 px-1.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-900 text-[9px] font-mono font-bold tracking-wider uppercase">
+                              CONTORNADAS
+                            </span>
+                            <h4 className="font-display font-bold text-xs uppercase tracking-wider text-slate-200">Barreiras de fato Tratadas</h4>
+                          </div>
+                          <p className="text-[11px] text-slate-400 leading-relaxed">
+                            O que o roteiro/operador abordou explicitamente para acalmar o aposentado:
+                          </p>
+                          <ul className="space-y-2 pt-1 text-xs">
+                            {critiqueResult.objectionHandling?.addressedObjections && critiqueResult.objectionHandling.addressedObjections.length > 0 ? (
+                              critiqueResult.objectionHandling.addressedObjections.map((obj, idx) => (
+                                <li key={idx} className="flex gap-2 text-emerald-400">
+                                  <span className="text-emerald-500 shrink-0 select-none">✓</span>
+                                  <span className="leading-relaxed text-slate-300">{obj}</span>
+                                </li>
+                              ))
+                            ) : (
+                              <li className="text-slate-500 font-mono text-[11px] bg-slate-900 p-2.5 rounded border border-slate-850 italic text-justify leading-relaxed">
+                                Nenhuma objeção foi desarmada de forma madura. O vendedor ignorou os anseios do aposentado.
+                              </li>
+                            )}
+                          </ul>
+                        </div>
+                      </div>
+
+                      {/* Missing Objections */}
+                      <div className="bg-slate-950 rounded-xl p-4 border border-slate-850 flex flex-col justify-between space-y-3 min-h-[180px] hover:border-red-900/45 transition-all">
+                        <div className="space-y-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="p-1 px-1.5 rounded bg-red-950 text-red-400 border border-red-900 text-[9px] font-mono font-bold tracking-wider uppercase">
+                              CRÍTICAS / FUROS
+                            </span>
+                            <h4 className="font-display font-bold text-xs uppercase tracking-wider text-slate-200">Objeções Cruciais Ignoradas</h4>
+                          </div>
+                          <p className="text-[11px] text-slate-400 leading-relaxed">
+                            Anseios urgentes que ficaram totalmente sem resposta, gerando paralisia comercial:
+                          </p>
+                          <ul className="space-y-2 pt-1 text-xs">
+                            {critiqueResult.objectionHandling?.missingObjections && critiqueResult.objectionHandling.missingObjections.length > 0 ? (
+                              critiqueResult.objectionHandling.missingObjections.map((obj, idx) => (
+                                <li key={idx} className="flex gap-2 text-red-400">
+                                  <span className="text-red-500 shrink-0 select-none">✗</span>
+                                  <span className="leading-relaxed text-slate-300">{obj}</span>
+                                </li>
+                              ))
+                            ) : (
+                              <li className="text-emerald-500 font-mono text-[11px] bg-slate-900 p-2 text-center rounded border border-slate-850">
+                                Nenhuma lacuna alarmante de objeção encontrada!
+                              </li>
+                            )}
+                          </ul>
+                        </div>
+                      </div>
+
+                    </div>
                   </div>
                 </div>
 
@@ -936,6 +1643,80 @@ export default function App() {
                       </div>
 
                     </div>
+
+                    {/* 5.5. Strategic Roadmap (makeoverStrategy) */}
+                    {critiqueResult.makeoverStrategy && (
+                      <div className="bg-slate-950 border border-slate-850 rounded-xl p-5 space-y-5">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-900">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-indigo-400" />
+                            <h4 className="font-display font-black text-sm text-slate-200 tracking-wide uppercase">
+                              Plano Estratégico & Justificativas Psicológicas
+                            </h4>
+                          </div>
+                          <span className="text-[10px] font-mono px-3 py-1 bg-indigo-950/40 border border-indigo-900/60 rounded text-indigo-300 font-bold">
+                            Engenharia de Conversão
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
+                          {/* Col 1: Core Strategic Changes */}
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-1.5 font-bold text-indigo-405 font-mono uppercase tracking-wider text-indigo-400">
+                              <span className="text-[11px]">🎯</span> Mudanças Críticas & Princípios Ativados:
+                            </div>
+                            <div className="space-y-2">
+                              {critiqueResult.makeoverStrategy.coreStrategicChanges?.map((change, idx) => (
+                                <div key={idx} className="bg-slate-900/40 border border-slate-850 p-3 rounded-lg flex items-start gap-2.5">
+                                  <span className="text-indigo-450 font-bold text-xs mt-0.5 shrink-0 select-none text-indigo-400">✦</span>
+                                  <span className="text-slate-300 leading-relaxed text-justify">{change}</span>
+                                </div>
+                              )) || <span className="text-slate-500 font-mono">Nenhuma listada.</span>}
+                            </div>
+                          </div>
+
+                          {/* Col 2: Optional Improvements */}
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-1.5 font-bold text-teal-405 font-mono uppercase tracking-wider text-teal-400">
+                              <span className="text-[11px]">💡</span> Otimizações Adicionais (Nice-To-Have):
+                            </div>
+                            <div className="space-y-2">
+                              {critiqueResult.makeoverStrategy.optionalImprovements?.map((imp, idx) => (
+                                <div key={idx} className="bg-slate-900/40 border border-slate-850 p-3 rounded-lg flex items-start gap-2.5">
+                                  <span className="text-teal-450 font-bold text-xs mt-0.5 shrink-0 select-none text-teal-400">◇</span>
+                                  <span className="text-slate-300 leading-relaxed text-justify">{imp}</span>
+                                </div>
+                              )) || <span className="text-slate-500 font-mono">Nenhuma listada.</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Priority Ranking Roadmap */}
+                        {critiqueResult.makeoverStrategy.priorityRanking && critiqueResult.makeoverStrategy.priorityRanking.length > 0 && (
+                          <div className="pt-4 border-t border-slate-900 space-y-3">
+                            <div className="flex items-center gap-1.5 text-xs font-bold font-mono text-slate-300 uppercase tracking-wider">
+                              <ArrowRight className="w-3.5 h-3.5 text-indigo-400" />
+                              Sequência Recomendada de Implementação (Mapa de Prioridades):
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              {critiqueResult.makeoverStrategy.priorityRanking.map((prio, idx) => (
+                                <div key={idx} className="p-3 rounded-lg bg-slate-900/60 border border-slate-850 relative group hover:border-slate-800 transition-all">
+                                  <div className="absolute top-2.5 right-2.5 flex items-center justify-center w-5 h-5 rounded-full bg-indigo-950/80 border border-indigo-900 text-[10px] text-indigo-400 font-black font-mono shadow-md">
+                                    #{idx + 1}
+                                  </div>
+                                  <div className="text-[10px] text-indigo-400 font-mono font-bold tracking-wider uppercase mb-1.5">
+                                    PASSO {idx + 1}
+                                  </div>
+                                  <p className="text-xs text-slate-300 leading-relaxed text-justify pr-2">
+                                    {prio}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Complete Supreme Script rewrite */}
                     <div className="bg-slate-950 border border-slate-850 rounded-xl p-5 space-y-4">
