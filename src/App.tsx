@@ -54,6 +54,26 @@ const SUB_AUDIENCE_PROFILES = [
     insight: "Gosta de respeito ritualístico, clareza absoluta, abomina urgência boba de internet e teme golpes bancários.",
   },
   {
+    id: "GovernoMG",
+    name: "Governo de Minas Gerais",
+    insight: "Perfil cauteloso, margem rígida de 30%, requer conformidade estrita.",
+  },
+  {
+    id: "GovernoPR",
+    name: "Governo do Paraná",
+    insight: "Fortemente bairrista, valoriza instituições regionais sólidas.",
+  },
+  {
+    id: "GovernoSC",
+    name: "Governo de Santa Catarina",
+    insight: "Extremamente conservador financeiramente, exige dados matemáticos concretos.",
+  },
+  {
+    id: "SIAPE",
+    name: "Servidores Federais (SIAPE)",
+    insight: "Analítico, alto nível de exigência técnica, busca otimização financeira.",
+  },
+  {
     id: "Refinanciamento",
     name: "Refinanciamento de Empréstimo",
     insight: "Sabe como funciona o troco e odeia sentir que está sendo enganado com taxas maquiadas.",

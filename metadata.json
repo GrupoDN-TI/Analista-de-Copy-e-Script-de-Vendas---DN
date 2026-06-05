@@ -1,6 +1,6 @@
 {
   "name": "Analista de Script de Vendas",
-  "description": "Uma plataforma de avaliação brutalmente honesta e analítica de scripts, áudios e estratégias de abordagem direcionados para o público de Aposentados e Pensionistas do INSS.",
+  "description": "Uma plataforma de avaliação brutalmente honesta e analítica de scripts, áudios e estratégias de abordagem direcionados para o público de Aposentados, Pensionistas e Servidores Públicos.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
